@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, user-scalable=yes, initial-scale=1, maximum-scale=1">
+        <meta name="mobile-web-app-capable" content="yes">
+        <title>3D Dots</title>
+        <link rel="stylesheet" href="css/dots3D.css"/>
+
+    </head>
+
+    <body>
+        <div id="container">
+            <div id="headerText">3D Dots</div>
+
+            <div id="dotsCanvasContainer">
+                <canvas id="dotsCanvas"></canvas>
+            </div>
+
+            <div>
+                <button class="connectDisconnectButton"></button>
+                <audio controls autoplay class="outputAudioEl"></audio>
+            </div>
+        
+            <div class="userDataContainer userDataContainer__ours">
+                <h2 class="userDataTitle">Local User Data:</h2>
+                <div class="userData">
+                    <p class="ourProvidedUserID">Provided User ID: <%- providedUserID %></p>
+                    <p class="ourPositionContainer"></p>
+                    <p class="ourOrientationContainer"></p>
+                </div>
+            </div>
+        
+            <div class="buttonContainer">
+                <div>
+                    <button onclick="subtractX()">x - 1m</button>
+                    <button onclick="addX()">x + 1m</button>
+                </div>
+                <div>
+                    <button onclick="subtractY()">y - 1m</button>
+                    <button onclick="addY()">y + 1m</button>
+                </div>
+                <div>
+                    <button onclick="subtractZ()">z - 1m</button>
+                    <button onclick="addZ()">z + 1m</button>
+                </div>
+        
+                <div>
+                    <button onclick="subtractPitch()">pitch - 45°</button>
+                    <button onclick="addPitch()">pitch + 45°</button>
+                </div>
+                <div>
+                    <button onclick="subtractYaw()">yaw - 45°</button>
+                    <button onclick="addYaw()">yaw + 45°</button>
+                </div>
+                <div>
+                    <button onclick="subtractRoll()">roll - 45°</button>
+                    <button onclick="addRoll()">roll + 45°</button>
+                </div>
+        
+                <div>
+                    <button onclick="resetPosition()">Reset Position</button>
+                    <button onclick="resetOrientation()">Reset Orient.</button>
+                </div>
+            </div>
+        
+            <div class="userDataContainer userDataContainer__fromServer"></div>
+        </div>
+
+        <script src="https://hifi-spatial-audio-api.s3.amazonaws.com/releases/latest/HighFidelityAudio-latest.js"></script>
+        <script src="js/dots3D.js" async></script>
+    </body>
+</html>

@@ -20,10 +20,8 @@
     <script>
         // Conversion constant since we use radians to draw on the canvas but we are setting degrees on the API 
         const RADIANS_TO_DEGREES = 57.2958;
-        // Connect to the High Fidelity Audio Spatial API Server by supplying your own JWT here.
-        // Follow this guide to get a JWT: https://www.highfidelity.com/api/guides/misc/getAJWT
-        // If you don't need a guide, obtain JWT credentials after signing up for a developer account at https://account.highfidelity.com/dev/account
-        const HIFI_AUDIO_JWT = "";
+        // This is the JWT associated with a space.
+        const HIFI_AUDIO_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfaWQiOiIzZTFlYmZkZi1kNzkzLTQwMTQtOGM2Mi05ZGM5NjVlYWU4MDEiLCJzcGFjZV9pZCI6IjEwZGEyNGVmLTRjNGMtNDc3NC04ZWU4LWNiNzcwNmI3MjZiYyIsInN0YWNrIjoiYXVkaW9uZXQtbWl4ZXItYXBpLWFscGhhLTAxIn0.TTpMBtlEYoHMReWuQIJF13TDp4ZF9xViulWMV1vN8QU";
         
         const SoundNodeType = {
             NODE: 0, // Basic node

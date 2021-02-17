@@ -1,0 +1,17 @@
+{
+  "name": "basic-3d-dots",
+  "version": "1.0.0",
+  "description": "3d audio, users are dots in a cube area",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Rebecca Stankus",
+  "license": "MIT",
+  "dependencies": {
+    "ejs": "^3.1.5",
+    "express": "^4.17.1",
+    "jose": "^3.5.4"
+  },
+  "devDependencies": {}
+}
