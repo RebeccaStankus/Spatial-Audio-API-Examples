@@ -5,26 +5,23 @@
         <meta name="viewport" content="width=device-width, user-scalable=yes, initial-scale=1, maximum-scale=1">
         <meta name="mobile-web-app-capable" content="yes">
         <title>3D Dots</title>
-        <link rel="stylesheet" href="/css/dots3D.css"/>
+        <link rel="stylesheet" href="/hackathon/css/dots3D.css"/>
     </head>
 
     <body>
         <div id="container">
             <div id="headerText">3D Dots</div>
-
+            <h2 id="userDataTitle" >You are <%- providedUserID %></h2>
             <div id="dotsCanvasContainer">
                 <canvas id="dotsCanvas"></canvas>
             </div>
 
             <div>
-                <button class="connectDisconnectButton"></button>
                 <audio controls autoplay class="outputAudioEl"></audio>
             </div>
         
-            <div class="userDataContainer userDataContainer__ours">
-                <h2 class="userDataTitle">Local User Data:</h2>
+            <div class="userDataContainer__ours">
                 <div class="userData">
-                    <p class="ourProvidedUserID">Provided User ID: <%- providedUserID %></p>
                     <p class="ourPositionContainer"></p>
                     <p class="ourOrientationContainer"></p>
                 </div>
@@ -32,18 +29,18 @@
         
             <div class="buttonContainer">
                 <div>
-                    <button onclick="subtractX()">x - 1m</button>
-                    <button onclick="addX()">x + 1m</button>
+                    <button onclick="subtractX()">🡀</button>
+                    <button onclick="addX()">🡂</button>
                 </div>
                 <div>
-                    <button onclick="subtractY()">y - 1m</button>
-                    <button onclick="addY()">y + 1m</button>
+                    <button onclick="subtractY()">🡁</button>
+                    <button onclick="addY()">🡃</button>
                 </div>
                 <div>
-                    <button onclick="subtractZ()">z - 1m</button>
-                    <button onclick="addZ()">z + 1m</button>
+                    <button onclick="subtractZ()">🠽</button>
+                    <button onclick="addZ()">🠿</button>
                 </div>
-        
+<!--         
                 <div>
                     <button onclick="subtractPitch()">pitch - 45°</button>
                     <button onclick="addPitch()">pitch + 45°</button>
@@ -60,7 +57,7 @@
                 <div>
                     <button onclick="resetPosition()">Reset Position</button>
                     <button onclick="resetOrientation()">Reset Orient.</button>
-                </div>
+                </div> -->
             </div>
         
             <div class="userDataContainer userDataContainer__fromServer"></div>
@@ -68,7 +65,8 @@
 
         <script src="https://hifi-spatial-audio-api.s3.amazonaws.com/releases/latest/HighFidelityAudio-latest.js"></script>
         <script>
-            let WORLD_DIMENSION_M = 100; // World will be a cubic area where all sides are of this size
+            const WORLD_DIMENSION_M = 100; // World will be a cubic area where all sides are of this size
+            const PROVIDED_USERNAME = '<%- providedUserID %>';
             let outputAudioEl = document.querySelector(`.outputAudioEl`);
             let userDataContainer__fromServer = document.querySelector(`.userDataContainer__fromServer`);
 
@@ -80,10 +78,6 @@
             updatePositionContainer();
             let ourOrientationContainer = document.querySelector(`.ourOrientationContainer`);
             updateOrientationContainer();
-
-            let connectDisconnectButton = document.querySelector(`.connectDisconnectButton`);
-            connectDisconnectButton.addEventListener("click", getUserMediaWrapper);
-            connectDisconnectButton.innerHTML = `Click to Connect`;
 
             let hifiCommunicator = null;
 
@@ -100,9 +94,6 @@
                     console.error(`Call to \`getUserMedia()\` failed! Error:\n${e}`);
                     return;
                 }
-
-                connectDisconnectButton.disabled = true;
-                connectDisconnectButton.innerHTML = `wait...`;
                 await connectToHiFiAudio(inputAudioMediaStream);
             }
 
@@ -114,26 +105,43 @@
             }
 
             function updateAllUserDataDiv() {
-                userDataContainer__fromServer.innerHTML = `<h2 class="userDataTitle">All User Data Reported By Server (Including Ours)</h2>`;
+                userDataContainer__fromServer.innerHTML = `<h2 class="userDataTitle">Peers</h2>`;
 
-                for (let i = 0; i < allUserDataFromServer.length; i++) {
+                for (let i = 0; i < currentPeers.length; i++) {
+                    if (currentPeers[i].providedUserID === PROVIDED_USERNAME) {
+                        continue;
+                    }
                     let currentDiv = document.createElement('div');
                     currentDiv.classList.add("userData");
-                    currentDiv.innerHTML += `<p>Provided User ID: ${allUserDataFromServer[i].providedUserID ? allUserDataFromServer[i].providedUserID : "&#60;unknown&#62;"}</p>`;
-                    currentDiv.innerHTML += `<p>Hashed Visit ID: ${allUserDataFromServer[i].hashedVisitID ? allUserDataFromServer[i].hashedVisitID : "&#60;unknown&#62;"}</p>`;
-                    currentDiv.innerHTML += `<p>Position: ${allUserDataFromServer[i].position ? JSON.stringify(allUserDataFromServer[i].position) : "&#60;unknown&#62;"}</p>`;
-                    currentDiv.innerHTML += `<p>Orientation: ${allUserDataFromServer[i].orientationEuler ? JSON.stringify(allUserDataFromServer[i].orientationEuler) : "&#60;unknown&#62;"}</p>`;
-                    currentDiv.innerHTML += `<p>Volume (dB): ${allUserDataFromServer[i].volumeDecibels ? allUserDataFromServer[i].volumeDecibels : "&#60;unknown&#62;"}</p>`;
+                    currentDiv.innerHTML += `<p style="color: ` + currentPeers[i].hexColor + `">${currentPeers[i].providedUserID ? currentPeers[i].providedUserID : "&#60;unknown&#62;"}</p>`;
                     userDataContainer__fromServer.appendChild(currentDiv);
                 }
             }
 
-            let allUserDataFromServer = [];
-            function onNewUserDataReceived(receivedHiFiAudioAPIDataArray) {
+            let currentPeers = [];
+            function onNewUserDataReceived(incomingPeers) {
                 let dataUpdated = false;
 
-                for (let recdItr = 0; recdItr < receivedHiFiAudioAPIDataArray.length; recdItr++) {
-                    let currentDataFromServer = receivedHiFiAudioAPIDataArray[recdItr];
+                // handle any removals first
+                // for (let currentPeerItr = currentPeers.length - 1; currentPeerItr >= 0; currentPeerItr--) {
+                //     // console.log(currentPeerItr, ") CURRENT PEER: ", currentPeers[currentPeerItr]);
+                //     let remove = true;
+                //     for (let incomingPeersItr = 0; incomingPeersItr < incomingPeers.length; incomingPeersItr++) {
+                //         // console.log(incomingPeersItr, ") INCOMING PEER: ", incomingPeers[incomingPeersItr]);
+                //         if (incomingPeers[incomingPeersItr].providedUserID === currentPeers[currentPeerItr].providedUserID) {
+                //             remove = false;
+                //             // console.log("FOUND IT");
+                //         }
+                //     }
+                //     if (remove) {
+                //         // console.log("REMOVING ", currentPeers[currentPeerItr].providedUserID);
+                //         // console.log("INCOMING DATA WAS ", incomingPeers);
+                //         currentPeers.splice(currentPeerItr, 1);
+                //     }
+                // }
+
+                for (let incomingPeersItr = 0; incomingPeersItr < incomingPeers.length; incomingPeersItr++) {
+                    let currentDataFromServer = incomingPeers[incomingPeersItr];
 
                     // We can't do anything with user data that doesn't contain a User ID or Hashed Visit ID.
                     if (!currentDataFromServer.providedUserID && !currentDataFromServer.hashedVisitID) {
@@ -141,54 +149,58 @@
                     }
 
                     let isNewUser = true;
-                    for (let allItr = 0; allItr < allUserDataFromServer.length; allItr++) {
-                        if ((currentDataFromServer.providedUserID && currentDataFromServer.providedUserID === allUserDataFromServer[allItr].providedUserID) ||
-                            currentDataFromServer.hashedVisitID && currentDataFromServer.hashedVisitID === allUserDataFromServer[allItr].hashedVisitID) {
+                    for (let currentPeerItr = 0; currentPeerItr < currentPeers.length; currentPeerItr++) {
+                        if ((currentDataFromServer.providedUserID && currentDataFromServer.providedUserID === currentPeers[currentPeerItr].providedUserID) ||
+                            currentDataFromServer.hashedVisitID && currentDataFromServer.hashedVisitID === currentPeers[currentPeerItr].hashedVisitID) {
                             isNewUser = false;
                             dataUpdated = true;
 
                             if (currentDataFromServer.position) {
-                                if (!allUserDataFromServer[allItr].position) {
-                                    allUserDataFromServer[allItr].position = new HighFidelityAudio.Point3D();
+                                if (!currentPeers[currentPeerItr].position) {
+                                    currentPeers[currentPeerItr].position = new HighFidelityAudio.Point3D();
                                 }
 
                                 if (typeof (currentDataFromServer.position.x) === "number") {
-                                    allUserDataFromServer[allItr].position.x = currentDataFromServer.position.x;
+                                    currentPeers[currentPeerItr].position.x = currentDataFromServer.position.x;
                                 }
                                 if (typeof (currentDataFromServer.position.y) === "number") {
-                                    allUserDataFromServer[allItr].position.y = currentDataFromServer.position.y;
+                                    currentPeers[currentPeerItr].position.y = currentDataFromServer.position.y;
                                 }
                                 if (typeof (currentDataFromServer.position.z) === "number") {
-                                    allUserDataFromServer[allItr].position.z = currentDataFromServer.position.z;
+                                    currentPeers[currentPeerItr].position.z = currentDataFromServer.position.z;
                                 }
                             }
 
                             if (currentDataFromServer.orientationEuler) {
-                                if (!allUserDataFromServer[allItr].orientationEuler) {
-                                    allUserDataFromServer[allItr].orientationEuler = new HighFidelityAudio.OrientationEuler3D();
+                                if (!currentPeers[currentPeerItr].orientationEuler) {
+                                    currentPeers[currentPeerItr].orientationEuler = new HighFidelityAudio.OrientationEuler3D();
                                 }
 
                                 if (typeof (currentDataFromServer.orientationEuler.pitchDegrees) === "number") {
-                                    allUserDataFromServer[allItr].orientationEuler.pitchDegrees = currentDataFromServer.orientationEuler.pitchDegrees;
+                                    currentPeers[currentPeerItr].orientationEuler.pitchDegrees = currentDataFromServer.orientationEuler.pitchDegrees;
                                 }
                                 if (typeof (currentDataFromServer.orientationEuler.yawDegrees) === "number") {
-                                    allUserDataFromServer[allItr].orientationEuler.yawDegrees = currentDataFromServer.orientationEuler.yawDegrees;
+                                    currentPeers[currentPeerItr].orientationEuler.yawDegrees = currentDataFromServer.orientationEuler.yawDegrees;
                                 }
                                 if (typeof (currentDataFromServer.orientationEuler.rollDegrees) === "number") {
-                                    allUserDataFromServer[allItr].orientationEuler.rollDegrees = currentDataFromServer.orientationEuler.rollDegrees;
+                                    currentPeers[currentPeerItr].orientationEuler.rollDegrees = currentDataFromServer.orientationEuler.rollDegrees;
                                 }
                             }
 
                             if (typeof (currentDataFromServer.volumeDecibels) === "number") {
-                                allUserDataFromServer[allItr].volumeDecibels = currentDataFromServer.volumeDecibels;
+                                currentPeers[currentPeerItr].volumeDecibels = currentDataFromServer.volumeDecibels;
                             }
                             break;
                         }
                     }
 
                     if (isNewUser) {
-                        allUserDataFromServer.push(currentDataFromServer);
+                        currentDataFromServer.hexColor = hexFromHash(currentDataFromServer.hashedVisitID);
+                        currentPeers.push(currentDataFromServer);
                         dataUpdated = true;
+                        if (currentDataFromServer.providedUserID === PROVIDED_USERNAME) {
+                            document.getElementById("userDataTitle").style = `color: ` + currentDataFromServer.hexColor;
+                        }
                     }
                 }
 
@@ -217,8 +229,6 @@
                     connectResponse = await hifiCommunicator.connectToHiFiAudioAPIServer(HIFI_AUDIO_JWT);
                 } catch (e) {
                     console.error(`Call to \`connectToHiFiAudioAPIServer()\` failed! Error:\n${JSON.stringify(e)}`);
-                    connectDisconnectButton.disabled = false;
-                    connectDisconnectButton.innerHTML = `Click to Connect`;
                     return;
                 }
 
@@ -232,16 +242,11 @@
                         HighFidelityAudio.AvailableUserDataSubscriptionComponents.OrientationEuler,
                         HighFidelityAudio.AvailableUserDataSubscriptionComponents.VolumeDecibels
                     ],
-                    "callback": (receivedHiFiAudioAPIDataArray) => {
-                        onNewUserDataReceived(receivedHiFiAudioAPIDataArray);
+                    "callback": (incomingPeers) => {
+                        onNewUserDataReceived(incomingPeers);
                     }
                 });
                 hifiCommunicator.addUserDataSubscription(newUserDataSubscription);
-
-                connectDisconnectButton.removeEventListener("click", getUserMediaWrapper);
-                connectDisconnectButton.addEventListener("click", disconnectFromHiFiAudio);
-                connectDisconnectButton.disabled = false;
-                connectDisconnectButton.innerHTML = `Click to Disconnect`;
 
                 outputAudioEl.srcObject = hifiCommunicator.getOutputAudioMediaStream();
                 // We must call `play()` here because certain browsers won't autoplay this stream as we expect.
@@ -250,11 +255,6 @@
 
             async function disconnectFromHiFiAudio() {
                 console.log(`Disconnecting from High Fidelity Audio API Servers...`);
-
-                connectDisconnectButton.removeEventListener("click", disconnectFromHiFiAudio);
-                connectDisconnectButton.addEventListener("click", getUserMediaWrapper);
-                connectDisconnectButton.disabled = false;
-                connectDisconnectButton.innerHTML = `Click to Connect`;
 
                 let disconnectStatus = await hifiCommunicator.disconnectFromHiFiAudioAPIServer();
                 hifiCommunicator = null;
@@ -365,7 +365,7 @@
             const MIN_WORLD_AVATAR_SIZE_M = 0.01;
             let dotsCanvas = document.getElementById("dotsCanvas");
             let ctx = dotsCanvas.getContext('2d');
-            let dotsCanvasContainerDimension;
+            let dotsCanvasContainerDimensionPx;
             let worldToCanvasRatio;
             let minCanvasAvatarSizePx;
             let maxCanvasAvatarSizePx;
@@ -373,17 +373,17 @@
                 let dotsCanvasContainer = document.getElementById("dotsCanvasContainer");
                 const MIN_CANVAS_CONTAINER_WIDTH = 250;
                 const MAX_CANVAS_CONTAINER_WIDTH = 800;
-                dotsCanvasContainerDimension = Math.min(Math.max(dotsCanvasContainer.clientWidth, MIN_CANVAS_CONTAINER_WIDTH), MAX_CANVAS_CONTAINER_WIDTH);
-                dotsCanvas.width = dotsCanvasContainerDimension;
-                dotsCanvas.height = dotsCanvasContainerDimension;
-                dotsCanvas.style.width = dotsCanvasContainerDimension + "px";
-                dotsCanvas.style.height = dotsCanvasContainerDimension + "px";
-                dotsCanvasContainer.style.height = dotsCanvasContainerDimension + "px";
+                dotsCanvasContainerDimensionPx = Math.min(Math.max(dotsCanvasContainer.clientWidth, MIN_CANVAS_CONTAINER_WIDTH), MAX_CANVAS_CONTAINER_WIDTH);
+                dotsCanvas.width = dotsCanvasContainerDimensionPx;
+                dotsCanvas.height = dotsCanvasContainerDimensionPx;
+                dotsCanvas.style.width = dotsCanvasContainerDimensionPx + "px";
+                dotsCanvas.style.height = dotsCanvasContainerDimensionPx + "px";
+                dotsCanvasContainer.style.height = dotsCanvasContainerDimensionPx + "px";
 
-                minCanvasAvatarSizePx = (dotsCanvasContainerDimension * MIN_WORLD_AVATAR_SIZE_M) / WORLD_DIMENSION_M;
-                maxCanvasAvatarSizePx = (dotsCanvasContainerDimension * MAX_WORLD_AVATAR_SIZE_M) / WORLD_DIMENSION_M;
-                worldToCanvasRatio = WORLD_DIMENSION_M / dotsCanvasContainerDimension;
-                console.log("CANVAS SIZE: ", dotsCanvasContainerDimension);
+                minCanvasAvatarSizePx = (dotsCanvasContainerDimensionPx * MIN_WORLD_AVATAR_SIZE_M) / WORLD_DIMENSION_M;
+                maxCanvasAvatarSizePx = (dotsCanvasContainerDimensionPx * MAX_WORLD_AVATAR_SIZE_M) / WORLD_DIMENSION_M;
+                worldToCanvasRatio = WORLD_DIMENSION_M / dotsCanvasContainerDimensionPx;
+                console.log("CANVAS SIZE: ", dotsCanvasContainerDimensionPx);
                 console.log("MIN CANVAS AVATAR SIZE: ", minCanvasAvatarSizePx);
                 console.log("MAX CANVAS AVATAR SIZE: ", maxCanvasAvatarSizePx);
             }
@@ -391,9 +391,9 @@
 
             function getCanvasCoords(worldPosition) {
                 let canvasPosition = {
-                    x: linearScale(worldPosition.x, -WORLD_DIMENSION_M / 2, WORLD_DIMENSION_M / 2, 0, dotsCanvasContainerDimension),
-                    y: linearScale(worldPosition.y, -WORLD_DIMENSION_M / 2, WORLD_DIMENSION_M / 2, 0, dotsCanvasContainerDimension),
-                    z: linearScale(worldPosition.z, -WORLD_DIMENSION_M / 2, WORLD_DIMENSION_M / 2, 0, dotsCanvasContainerDimension)
+                    x: linearScale(worldPosition.x, -WORLD_DIMENSION_M / 2, WORLD_DIMENSION_M / 2, 0, dotsCanvasContainerDimensionPx),
+                    y: linearScale(worldPosition.y, -WORLD_DIMENSION_M / 2, WORLD_DIMENSION_M / 2, 0, dotsCanvasContainerDimensionPx),
+                    z: linearScale(worldPosition.z, -WORLD_DIMENSION_M / 2, WORLD_DIMENSION_M / 2, 0, dotsCanvasContainerDimensionPx)
                 };
 
                 return canvasPosition;
@@ -413,33 +413,62 @@
                 return minOutput + (maxOutput - minOutput) *
                     (input - minInput) / (maxInput - minInput);
             }
-
             
-            function draw() {
-                ctx.clearRect(0, 0, dotsCanvasContainerDimension, dotsCanvasContainerDimension);
-                ctx.fillStyle = "#0F0F0F";
-                ctx.fillRect(0, 0, dotsCanvasContainerDimension, dotsCanvasContainerDimension);
-
-                let myCanvasPosition = getCanvasCoords(currentPosition);
-                
-                let mySizeM = linearScale(currentPosition.z, -WORLD_DIMENSION_M / 2, WORLD_DIMENSION_M / 2, minCanvasAvatarSizePx, maxCanvasAvatarSizePx);
-                ctx.fillStyle = "red";
-
-                ctx.arc(myCanvasPosition.x, myCanvasPosition.y, 10 / 2, 0, 2 * Math.PI);
-                ctx.fill();
-            
-                // for (let i = 0; i < peers.length; i++) {
-                //     ctx.beginPath();
-                //     ctx.fillStyle = this.color;
-                //     ctx.arc(this.x, this.y, this.size, 0, 2 * Math.PI);
-                //     ctx.fill();
-                // }
-                requestAnimationFrame(draw);
+            function getNumericHashCode(str) {
+                var hash = 0, i, chr;
+                for (i = 0; i < str.length; i++) {
+                    chr   = str.charCodeAt(i);
+                    hash  = ((hash << 5) - hash) + chr;
+                    hash |= 0; // Convert to 32bit integer
+                }
+                return hash;
             }
 
-            window.onresize = resizeCanvas;
-            requestAnimationFrame(draw);
+            function hexFromHash(hash) {
+                let numericHash = getNumericHashCode(hash);
+                let rgb = {
+                    r: (numericHash & 0xFF0000) >> 16,
+                    g: (numericHash & 0x00FF00) >> 8,
+                    b: numericHash & 0x0000FF
+                }
 
+                let hexR = Number(rgb.r).toString(16);
+                if (hexR.length < 2) {
+                    hexR = "0" + hexR;
+                }
+                let hexG = Number(rgb.g).toString(16);
+                if (hexG.length < 2) {
+                    hexG = "0" + hexG;
+                }
+                let hexB = Number(rgb.b).toString(16);
+                if (hexB.length < 2) {
+                    hexB = "0" + hexB;
+                }
+
+                return `#${hexR}${hexG}${hexB}`;
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, dotsCanvasContainerDimensionPx, dotsCanvasContainerDimensionPx);
+                ctx.fillStyle = "#0F0F0F";
+                ctx.fillRect(0, 0, dotsCanvasContainerDimensionPx, dotsCanvasContainerDimensionPx);
+            
+                for (let i = 0; i < currentPeers.length; i++) {
+                    if (currentPeers[i].position) {
+                        let peerCanvasPosition = getCanvasCoords(currentPeers[i].position);
+                        let peerCanvasSize = linearScale(currentPeers[i].position.z, -WORLD_DIMENSION_M / 2, WORLD_DIMENSION_M / 2, minCanvasAvatarSizePx, maxCanvasAvatarSizePx);
+                        
+                        ctx.fillStyle = currentPeers[i].hexColor;
+                        ctx.beginPath()
+                        ctx.arc(peerCanvasPosition.x, peerCanvasPosition.y, peerCanvasSize / 2, 0, 2 * Math.PI);
+                        ctx.fill();
+                    }
+                }
+                requestAnimationFrame(draw);
+            }
+            window.onresize = resizeCanvas;
+            getUserMediaWrapper();
+            requestAnimationFrame(draw);
         </script>
     </body>
 </html>
